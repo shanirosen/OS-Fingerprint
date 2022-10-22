@@ -1,6 +1,18 @@
 import re
 import itertools
 import pandas as pd
+from math import log2
+from functools import reduce
+from math import gcd
+from tqdm import tqdm
+from scapy.arch import WINDOWS
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+from scapy.sendrecv import sr
+
+
+def find_gcd(list):
+    x = reduce(gcd, list)
+    return x
 
 
 def list_to_dict(lst):
@@ -13,13 +25,14 @@ def list_to_dict(lst):
             dct[splitted[0]] = ""
     return dct
 
+
 def parse_nmap_os_db(path):
     parsed_os_db = {}
 
     with open(path) as file:
         lines = file.readlines()
         lines = [line.rstrip() for line in lines]
-    
+
     parsed_list = [list(g) for k, g in itertools.groupby(
         lines, lambda x:x in '') if not k]
 
@@ -62,3 +75,13 @@ def parse_fingerprints(fp_results):
     top10 = grouped_df.reset_index(drop=True).head(10)
 
     return top10
+
+
+def packet_sender(tests):
+    answers = []
+    print("\nSending Packets...\n")
+    for packet in tqdm(tests, colour="green"):
+        ans, unans = sr(packet, timeout=2)
+        ans.extend((x, None) for x in unans)
+        answers.append(ans)
+    return answers
