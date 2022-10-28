@@ -151,7 +151,7 @@ MATCH_POINTS = {
     }
 }
 
-PATH = r"/Users/shanirosen/Desktop/nmap-os-db.txt"
+PATH = r"./nmap-os-db.txt"
 
 BANNER = f"""
    ____  _____    _______                                  _       __ 
