@@ -1,53 +1,13 @@
-from utils import parse_nmap_os_db, parse_fingerprints, packet_sender
+from utils import parse_nmap_os_db, parse_fingerprints, packet_sender, port_scanner
 from config import MATCH_POINTS, PATH, PORT_RANGE, BANNER
 from scapy.config import conf
 from scapy.arch import WINDOWS
-from scapy.layers.inet import IP, TCP, UDP, ICMP, sr1
+from scapy.layers.inet import IP, TCP, UDP
 from more_itertools import take
 import operator
-import random
-from tqdm import tqdm
 from prettytable import PrettyTable
 from termcolor import colored
 from parsers import seq_parser, t1_t7_u1_parser, tcp_ops_win_parser
-
-
-def port_scanner(host, port_range):
-    print("\nScanning Ports...\n")
-    # Send SYN with random Src Port for each Dst port
-    results = []
-    for dst_port in tqdm(port_range, colour="yellow"):
-        src_port = random.randint(1025, 65534)
-        resp = sr1(
-            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=1,
-            verbose=0,
-        )
-
-        if resp is None:
-            results.append([dst_port, "Filtered", port_range[dst_port]])
-
-        elif(resp.haslayer(TCP)):
-            if(resp.getlayer(TCP).flags == 0x12):
-                # Send a gratuitous RST to close the connection
-                send_rst = sr1(
-                    IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags='R'),
-                    timeout=1,
-                    verbose=0,
-                )
-                results.append([dst_port, "Open", port_range[dst_port]])
-
-            elif (resp.getlayer(TCP).flags == 0x14):
-                results.append(
-                    [dst_port, "Closed", port_range[dst_port]])
-
-        elif(resp.haslayer(ICMP)):
-            if(
-                    int(resp.getlayer(ICMP).type) == 3 and
-                    int(resp.getlayer(ICMP).code) in [1, 2, 3, 9, 10, 13]):
-                results.append(
-                    [dst_port, "Filtered", port_range[dst_port]])
-
-    return results
 
 
 def t1_t7_u1_config(host, oport, cport):
