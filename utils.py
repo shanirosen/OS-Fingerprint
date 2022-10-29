@@ -107,6 +107,16 @@ def parse_hex(fingerprints):
                 if test in ['SP', 'GCD', 'ISR']:
                     splitted = fingerprints[fp][cat][test].split('|')
                     for item in splitted:
+                        if '>' in item:
+                            number = int(item[1:], base=16)
+                            item = [('gt', number)]
+                            result.append(item)
+                            continue
+                        elif '<' in item:
+                            number = int(item[1:], base=16)
+                            item = [('lt', number)]
+                            result.append(item)
+                            continue
                         ranged = item.split('-')
                         if len(ranged) > 1:
                             first = int(ranged[0], base=16)
