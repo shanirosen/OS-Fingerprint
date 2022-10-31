@@ -7,7 +7,45 @@ from math import gcd
 from tqdm import tqdm
 from scapy.arch import WINDOWS
 from scapy.layers.inet import IP, TCP, UDP, ICMP
-from scapy.sendrecv import sr
+from scapy.sendrecv import sr, sr1
+import random
+
+
+def port_scanner(host, port_range):
+    print("\nScanning Ports...\n")
+    results = []
+
+    for dst_port in tqdm(port_range, colour="yellow"):
+        src_port = random.randint(1025, 65534)
+        resp = sr1(
+            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=1,
+            verbose=0,
+        )
+
+        if resp is None:
+            results.append([dst_port, "Filtered", port_range[dst_port]])
+
+        elif(resp.haslayer(TCP)):
+            if(resp.getlayer(TCP).flags == 0x12):
+                send_rst = sr1(
+                    IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags='R'),
+                    timeout=1,
+                    verbose=0,
+                )
+                results.append([dst_port, "Open", port_range[dst_port]])
+
+            elif (resp.getlayer(TCP).flags == 0x14):
+                results.append(
+                    [dst_port, "Closed", port_range[dst_port]])
+
+        elif(resp.haslayer(ICMP)):
+            if(
+                    int(resp.getlayer(ICMP).type) == 3 and
+                    int(resp.getlayer(ICMP).code) in [1, 2, 3, 9, 10, 13]):
+                results.append(
+                    [dst_port, "Filtered", port_range[dst_port]])
+
+    return results
 
 
 def find_gcd(list):
@@ -77,11 +115,11 @@ def parse_fingerprints(fp_results):
     return top10
 
 
-def packet_sender(tests):
+def packet_sender(tests, interval=0.1):
     answers = []
     print("\nSending Packets...\n")
     for packet in tqdm(tests, colour="green"):
-        ans, unans = sr(packet, timeout=2)
+        ans, unans = sr(packet, timeout=2, inter=interval)
         ans.extend((x, None) for x in unans)
         answers.append(ans)
     return answers
