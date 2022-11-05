@@ -8,6 +8,7 @@ import operator
 from prettytable import PrettyTable
 from termcolor import colored
 from parsers import seq_parser, t1_t7_u1_parser, tcp_ops_win_parser
+from pprint import pprint
 
 
 def t1_t7_u1_config(host, oport, cport):
@@ -72,7 +73,19 @@ def matching_algorithm(nmap_os_db, res):
                 try:
                     if nmap_os_db[fp][category][test]:
                         possible_points += MATCH_POINTS[category][test]
-                        if res[category][test] == nmap_os_db[fp][category][test]:  # and no operators
+                        if type(nmap_os_db[fp][category][test]) == list:
+                            if res[category][test] in nmap_os_db[fp][category][test]:
+                                match_points += MATCH_POINTS[category][test]
+                            else:
+                                for item in nmap_os_db[fp][category][test]:
+                                    if type(item) == tuple:
+                                        if item[0] == 'gt':
+                                            if res[category][test] > item[1]:
+                                                match_points += MATCH_POINTS[category][test]
+                                        else:
+                                            if res[category][test] < item[1]:
+                                                match_points += MATCH_POINTS[category][test]
+                        elif res[category][test] == nmap_os_db[fp][category][test]:
                             match_points += MATCH_POINTS[category][test]
                 except:
                     continue
@@ -118,13 +131,14 @@ def os_fp(host, cport=1):
             tcp_res = tcp_ops_win_parser(answers2)
             seq = seq_parser(answers2)
 
-            final_res = {**t1_t7_u1_res, **tcp_res}
-            fp_matches = matching_algorithm(nmap_os_db, final_res)
-            fp_results.append(take(10, fp_matches.items()))
+            final_res = {**t1_t7_u1_res, **tcp_res, **seq}
+            pprint(final_res)
+            #fp_matches = matching_algorithm(nmap_os_db, final_res)
+            ##fp_results.append(take(10, fp_matches.items()))
 
-        flat = [item for sublist in fp_results for item in sublist]
-        parsed = parse_fingerprints(flat)
-        print(parsed)
+        # flat = [item for sublist in fp_results for item in sublist]
+        # parsed = parse_fingerprints(flat)
+        # print(parsed)
 
 
 os_fp("45.33.32.156")

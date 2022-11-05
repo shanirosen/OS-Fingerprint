@@ -86,18 +86,48 @@ def parse_nmap_os_db(path):
                 continue
 
         for value in item:
-            param = re.match("(.*?)\(", value)
+            param = re.match("(.*?)\(.*\=.*\)$", value)
             try:
-                param = param.group()
+                value = param.group()
+                category = param.group(1)
             except:
                 continue
             mark = value.find("(")
             data = value[mark+1:-1]
             data_list = data.split("%")
-            parsed_os_db[key][param[:-1]] = list_to_dict(data_list)
+            parsed_os_db[key][category] = list_to_dict(data_list)
 
     return parsed_os_db
 
+def parse_hex(fingerprints):
+    for fp in fingerprints:
+        for cat in fingerprints[fp]:
+            for test in fingerprints[fp][cat]:
+                result = []
+                if test in ['SP', 'GCD', 'ISR']:
+                    splitted = fingerprints[fp][cat][test].split('|')
+                    for item in splitted:
+                        if '>' in item:
+                            number = int(item[1:], base=16)
+                            item = [('gt', number)]
+                            result.append(item)
+                            continue
+                        elif '<' in item:
+                            number = int(item[1:], base=16)
+                            item = [('lt', number)]
+                            result.append(item)
+                            continue
+                        ranged = item.split('-')
+                        if len(ranged) > 1:
+                            first = int(ranged[0], base=16)
+                            last = int(ranged[1], base=16)
+                            range_list = list(range(first,last+1))
+                            result.append(range_list)
+                        else:
+                            result.append([int(ranged[0],base=16)])
+                    flat_list = [item for sublist in result for item in sublist]
+                    fingerprints[fp][cat][test] = flat_list
+    return fingerprints
 
 def parse_fingerprints(fp_results):
     df = pd.DataFrame(fp_results)

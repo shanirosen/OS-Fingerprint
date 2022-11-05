@@ -61,9 +61,9 @@ def seq_parser(packets):
     sp = parse_sp(seq_list, seq_rates, gcd)
 
     res["SEQ"] = {
-        "SP": f'{sp:x}',
-        "GCD": f'{gcd:x}',
-        "ISR": f'{isr:x}',
+        "SP": int(f'{sp:x}', base=16),
+        "GCD": int(f'{gcd:x}', base=16),
+        "ISR": int(f'{isr:x}', base=16),
     }
 
     return res
