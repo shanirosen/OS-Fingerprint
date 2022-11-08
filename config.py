@@ -184,3 +184,11 @@ PORT_RANGE = {21: "ftp",
               8080: "http-proxy"}
 
 LIMIT = 4294967295
+
+OS_DB_PATH = "./parsed_nmap_os_db.json"
+
+REQUIRED_RESPONSES = {
+    "TI" : 3,
+    "CI": 2,
+    "II": 2
+}

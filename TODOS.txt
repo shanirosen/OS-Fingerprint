@@ -1,0 +1,33 @@
+TESTS:
+1. SEQUENCE GENERATION (6 tcp packets) - DONE
+    EXPECTED RESULTS:
+    - GCD - DONE
+    - SP - DONE
+    - ISR - DONE
+    - TI - DONE
+    - II - DONE
+    - CI - DONE
+    - TS - DONE
+    - SS - DONE
+2. ICMP ECHO (2 packets) - DONE
+    EXPECTED RESULTS:
+    -  R - DONE
+    - DFI - DONE
+    - T - DONE
+    - TG - DONE
+    - CD - DONE
+3. ECN - NOT DONE
+4. TCP T2-T7
+    EXPECTED RESULTS:
+    - R, 
+    - DF, 
+    - T, 
+    - TG, 
+    - W, 
+    - S, 
+    - A, 
+    - F, 
+    - O, 
+    - RD
+    - Q
+5. UDP - WIP

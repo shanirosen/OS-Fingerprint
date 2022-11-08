@@ -1,17 +1,20 @@
-from utils import parse_nmap_os_db, parse_fingerprints, packet_sender, port_scanner
-from config import MATCH_POINTS, PATH, PORT_RANGE, BANNER
+from utils import parse_nmap_os_db, get_final_fp_guess, packet_sender, port_scanner, matching_algorithm, prettify_ports
+from config import PATH, PORT_RANGE, BANNER, OS_DB_PATH
 from scapy.config import conf
 from scapy.arch import WINDOWS
-from scapy.layers.inet import IP, TCP, UDP
+from scapy.layers.inet import IP, TCP, UDP, ICMP
 from more_itertools import take
-import operator
 from prettytable import PrettyTable
 from termcolor import colored
-from parsers import seq_parser, t1_t7_u1_parser, tcp_ops_win_parser
-from pprint import pprint
+from parsers import seq_parser, t1_t7_u1_parser, tcp_ops_win_parser, ti_ci_ii_parser, ie_parser, ss_parser, ts_parser
+import os
+import random
+import json
+from halo import Halo
 
 
 def t1_t7_u1_config(host, oport, cport):
+    # TCP T1-T7
     tcpopt = [("WScale", 10),
               ("NOP", None),
               ("MSS", 256),
@@ -35,13 +38,25 @@ def t1_t7_u1_config(host, oport, cport):
     U1 = IP(dst="127.0.0.1", id=1042) / \
         UDP(sport=5008, dport=cport) / (300 * "C")
 
-    tests = [T1, T2, T3, T4, T5, T6, T7, U1]
+    return [T1, T2, T3, T4, T5, T6, T7, U1]
 
-    return tests
+
+def t5_t7_config(host, cport):
+    tcpopt = [("WScale", 10),
+              ("NOP", None),
+              ("MSS", 256),
+              ("Timestamp", (123, 0))]
+    T5 = IP(dst=host) / TCP(seq=1, sport=5005,
+                            dport=cport, options=tcpopt, flags="S", window=31337)
+    T6 = IP(dst=host, flags="DF") / TCP(seq=1, sport=5006,
+                                        dport=cport, options=tcpopt, flags="A", window=32768)
+    T7 = IP(dst=host) / TCP(seq=1, sport=5007,
+                            dport=cport, options=tcpopt, flags="FPU", window=65535)
+    return [T5, T6, T7]
 
 
 def tcp_config(host, oport):
-
+    # SEQ probes #1-#6
     packet1 = IP(dst=host) / TCP(sport=5001, dport=oport, options=[("WScale", 10), ("NOP", None),
                                                                    ("MSS", 1460), ("Timestamp", (123, 0))], window=1)
     packet2 = IP(dst=host) / TCP(sport=5002,  dport=oport, options=[("MSS", 1400), (
@@ -59,86 +74,89 @@ def tcp_config(host, oport):
     packet6 = IP(dst=host) / TCP(sport=5006, dport=oport,
                                  options=[("MSS", 265), ("SAck", ""), ("Timestamp", (123, 0))], window=512)
 
-    tests = [packet1, packet2, packet3, packet4, packet5, packet6]
-    return tests
+    return [packet1, packet2, packet3, packet4, packet5, packet6]
 
 
-def matching_algorithm(nmap_os_db, res):
-    results = {}
-    for fp in nmap_os_db.keys():
-        possible_points = 0
-        match_points = 0
-        for category in res.keys():
-            for test in res[category]:
-                try:
-                    if nmap_os_db[fp][category][test]:
-                        possible_points += MATCH_POINTS[category][test]
-                        if type(nmap_os_db[fp][category][test]) == list:
-                            if res[category][test] in nmap_os_db[fp][category][test]:
-                                match_points += MATCH_POINTS[category][test]
-                            else:
-                                for item in nmap_os_db[fp][category][test]:
-                                    if type(item) == tuple:
-                                        if item[0] == 'gt':
-                                            if res[category][test] > item[1]:
-                                                match_points += MATCH_POINTS[category][test]
-                                        else:
-                                            if res[category][test] < item[1]:
-                                                match_points += MATCH_POINTS[category][test]
-                        elif res[category][test] == nmap_os_db[fp][category][test]:
-                            match_points += MATCH_POINTS[category][test]
-                except:
-                    continue
-        if match_points > possible_points:
-            print(match_points, possible_points)
-            print(fp)
-        results[fp] = match_points / possible_points
-    sorted_res = dict(
-        sorted(results.items(), key=operator.itemgetter(1), reverse=True))
-    return sorted_res
+def icmp_config(host):
+    ip_id = random.randint(0, 65534)
+    icmp_id = random.randint(0, 65534)
+    packet1 = IP(dst=host, id=ip_id, flags="DF", tos=0) / \
+        ICMP(seq=295, id=icmp_id, code=9) / (120 * "0")
+    packet2 = IP(dst=host, id=ip_id + 1, flags="DF", tos=4) / \
+        ICMP(seq=295, id=icmp_id + 1, code=0) / (150 * "0")
 
+    return [packet1, packet2]
+
+
+def parse_all_packets(tcp_ans, seq_ans, icmp_ans, tcp_cport_ans):
+    t1_t7_u1 = t1_t7_u1_parser(tcp_ans)
+    ops_win = tcp_ops_win_parser(seq_ans)
+
+    ti = ti_ci_ii_parser(seq_ans, "TI")
+    ts = ts_parser(seq_ans)
+    ci = ti_ci_ii_parser(tcp_cport_ans, "CI")
+    ii = ti_ci_ii_parser(icmp_ans, "II")
+    ie = ie_parser(icmp_ans)
+
+    if (len(ii.keys()) > 0 and (ii["II"] == "RI" or ii["II"] == "BI" or ii["II"] == "I") and ti["TI"] == ii["II"]):
+        ss = ss_parser(icmp_ans, seq_ans)
+    else:
+        ss = {}
+
+    seq = seq_parser(seq_ans)
+    seq["SEQ"] = {**seq["SEQ"], **ti, **ii, **ci, **ss, **ts}
+
+    return {**seq, **t1_t7_u1, **ops_win, **ie}
+
+
+def send_and_parse_packets(host, oport, cport):
+    tcp_probes = t1_t7_u1_config(host, oport, cport)
+    tcp_cport_probes = t5_t7_config(host, cport)
+    seq_probes = tcp_config(host, oport)
+    icmp_probes = icmp_config(host)
+
+    tcp_ans = packet_sender(tcp_probes)
+    seq_ans = packet_sender(seq_probes)
+    icmp_ans = packet_sender(icmp_probes)
+    tcp_cport_ans = packet_sender(tcp_cport_probes)
+
+    final_res = parse_all_packets(tcp_ans, seq_ans, icmp_ans, tcp_cport_ans)
+    return final_res
+
+def create_nmap_os_db():
+    if (not os.path.exists(OS_DB_PATH)):
+        parse_nmap_os_db(PATH)
+
+    db_file = open(OS_DB_PATH)
+    nmap_os_db = json.load(db_file)
+    return nmap_os_db
 
 def os_fp(host, cport=1):
     print(BANNER)
     conf.verb = 0
-    nmap_os_db = parse_nmap_os_db(PATH)
-    ports_results = port_scanner(host, PORT_RANGE)
-    ports_table = PrettyTable()
-    ports_table.field_names = ["Port", "Status", "Service"]
-    ports_table.add_rows(ports_results)
-#    print(ports_table)
-
-    open_ports = []
-    for res in ports_results:
-        if res[1] == "Open":
-            open_ports.append(res[0])
+    
+    nmap_os_db = create_nmap_os_db()
+    
+    ports_results, open_ports = port_scanner(host, PORT_RANGE)
+    
+    #print(prettify_ports(ports_results))
 
     if len(open_ports) == 0:
         print(colored(
-            "WARNING: No open ports found, cannot run os tests. Aborting", "yellow"))
+            "WARNING: No open ports found, cannot guess os fingerprint. Aborting", "yellow"))
         return
 
-    else:
-        fp_results = []
-        for oport in open_ports:
-            tests1 = t1_t7_u1_config(host, oport, cport)
-            tests2 = tcp_config(host, oport)
-
-            answers1 = packet_sender(tests1)
-            answers2 = packet_sender(tests2)
-
-            t1_t7_u1_res = t1_t7_u1_parser(answers1)
-            tcp_res = tcp_ops_win_parser(answers2)
-            seq = seq_parser(answers2)
-
-            final_res = {**t1_t7_u1_res, **tcp_res, **seq}
-            pprint(final_res)
-            #fp_matches = matching_algorithm(nmap_os_db, final_res)
-            ##fp_results.append(take(10, fp_matches.items()))
-
-        # flat = [item for sublist in fp_results for item in sublist]
-        # parsed = parse_fingerprints(flat)
-        # print(parsed)
+    multiple_fp_results = []
+    spinner = Halo(text='Creating Fingerprint...', spinner='dots')
+    for oport in open_ports:
+        spinner.start()
+        final_res = send_and_parse_packets(host, oport, cport)
+        fp_matches = matching_algorithm(nmap_os_db, final_res)
+        multiple_fp_results.append(take(10, fp_matches.items()))
+    
+    spinner.stop()
+    final_os_guess = get_final_fp_guess(multiple_fp_results)
+    print(final_os_guess)
 
 
 os_fp("45.33.32.156")
