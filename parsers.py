@@ -9,20 +9,22 @@ from utils import parse_diffs, all_equal, avg_inc_per_sec
 
 def ts_parser(packets):
     timestamps = []
-    ans_counter = 0
+    pkt_counter = 0
+    index = 0
     for pkt in packets:
         for snd, rcv in pkt:
+            index += 1
             if rcv is not None:
-                ans_counter += 1
-                ts = [item for item in rcv[TCP].options if item[0] == 'Timestamp']
+                pkt_counter += 1
+                ts = [item for item in rcv[TCP].options if item[0] == 'Timestamp'][0]
                 if len(ts) > 0:
-                    timestamps.append(ts[0])
+                    timestamps.append((index, ts[1][0]))
 
     avg_inc = avg_inc_per_sec(timestamps)
 
-    if len(timestamps) < ans_counter and ans_counter > 0:
+    if len(timestamps) < pkt_counter and pkt_counter > 0:
         return {"TS": "U"}
-    elif any([item for item in timestamps if item[1][0] == 0]):
+    elif any([ts for ts in timestamps if ts[1] == 0]):
         return {"TS": 0}
     elif 0 <= avg_inc <= 5.66:
         return {"TS": 1}
@@ -34,12 +36,12 @@ def ts_parser(packets):
         return {"TS": round(log2(avg_inc))}
 
 
-def get_tg(i_ttl):
-    if (i_ttl <= 32):
+def get_tg(ttl):
+    if (ttl <= 32):
         tg = 32
-    elif (i_ttl > 32 and i_ttl <= 64):
+    elif (ttl > 32 and ttl <= 64):
         tg = 64
-    elif (i_ttl > 64 and i_ttl <= 128):
+    elif (ttl > 64 and ttl <= 128):
         tg = 128
     else:
         tg = 255
@@ -48,36 +50,36 @@ def get_tg(i_ttl):
 
 def ie_parser(packets):
     res = {"IE": {}}
-    answers = []
+    packets = []
     probes = []
     for pkt in packets:
         for snd, rcv in pkt:
             if rcv is not None:
-                answers.append(rcv)
+                packets.append(rcv)
             probes.append(snd)
-    if (len(answers) < 2):
+    if (len(packets) < 2):
         res["IE"]["R"] = "N"
     else:
-        if (not answers[0].flags.DF and not answers[1].flags.DF):
+        if (not packets[0].flags.DF and not packets[1].flags.DF):
             res["IE"]["DFI"] = "N"
-        elif (answers[0].flags.DF == probes[0].flags.DF and answers[1].flags.DF == probes[1].flags.DF):
+        elif (packets[0].flags.DF == probes[0].flags.DF and packets[1].flags.DF == probes[1].flags.DF):
             res["IE"]["DFI"] = "S"
-        elif (answers[0].flags.DF and answers[1].flags.DF):
+        elif (packets[0].flags.DF and packets[1].flags.DF):
             res["IE"]["DFI"] = "Y"
         else:
             res["IE"]["DFI"] = "O"
 
-        res["IE"]["T"] = answers[0].ttl
+        res["IE"]["T"] = packets[0].ttl
 
-        tg = get_tg(answers[0].ttl)
+        tg = get_tg(packets[0].ttl)
         res["IE"]["TG"] = tg
 
-        if (answers[0][ICMP].code == 0 and answers[1][ICMP].code == 0):
+        if (packets[0][ICMP].code == 0 and packets[1][ICMP].code == 0):
             res["IE"]["CD"] = "Z"
-        elif (answers[0][ICMP].code == probes[0][ICMP].code and answers[1][ICMP].code == probes[1][ICMP].code):
+        elif (packets[0][ICMP].code == probes[0][ICMP].code and packets[1][ICMP].code == probes[1][ICMP].code):
             res["IE"]["CD"] = "S"
-        elif (answers[0][ICMP].code == answers[1][ICMP].code):
-            res["IE"]["CD"] = answers[0][ICMP].code
+        elif (packets[0][ICMP].code == packets[1][ICMP].code):
+            res["IE"]["CD"] = packets[0][ICMP].code
         else:
             res["IE"]["CD"] = "O"
     return res
@@ -198,57 +200,68 @@ def u1_parser(snd, rcv):
         res["R"] = "Y"
         res["DF"] = "Y" if rcv.flags.DF else "N"
         res["TOS"] = rcv.tos
+        res["TG"] = get_tg(rcv.ttl)
         res["T"] = rcv.ttl
-        res["W"] = rcv.window
         res["IPL"] = rcv.len
-        res["RIPL"] = rcv.payload.payload.len
-        res["RID"] = "G" if rcv[IPerror].id == 4162 else rcv[IPerror].id
+        res["RIPL"] = "G" if rcv[IPerror].len == 328 else rcv[IPerror].len.payload.payload.len
+        res["RID"] = "G" if rcv[IPerror].id == 1042 else rcv[IPerror].id
         res["RIPCK"] = "G" if snd.chksum == rcv[IPerror].chksum else (
             "Z" if rcv[IPerror].chksum == 0 else "I"
         )
-        # res["RUCK"] = "E" if snd.payload.chksum == rcv[UDPerror].chksum else (
-        #     "0" if rcv[UDPerror].chksum == 0 else "F"
-        # )
-        res["ULEN"] = rcv[UDPerror].len
-        res["DAT"] = "E" if (
+        res["RUCK"] = "E" if snd.payload.chksum == rcv[UDPerror].chksum else (
+            "0" if rcv[UDPerror].chksum == 0 else "F"
+        )
+        res["RUD"] = "G" if (
             isinstance(rcv[UDPerror].payload, NoPayload) or
             raw(rcv[UDPerror].payload) == raw(snd[UDP].payload)
-        ) else "F"
+        ) else "I"
+        #res["UN"] = rcv.unused #CHECK???
     return res
 
 
-def t1_t7_u1_parser(answers):
+def t1_t7_u1_parser(packets):
     res = {"U1": {}}
-    for ans in answers:
-        for snd, rcv in ans:
-            if snd.sport == 5008:
+    for pkt in packets:
+        for snd, rcv in pkt:
+            if str(snd.sport)[-1] == "8":
                 res["U1"] = u1_parser(snd, rcv)
             else:
-                key = f"T{snd.sport - 5000}"
+                key = f'T{str(snd.sport)[-1]}'
                 res[key] = {}
                 if rcv is not None:
                     res[key]["DF"] = "Y" if rcv.flags.DF else "N"
-                    res[key]["W"] = rcv.window
+                    res[key]["W"] = rcv[TCP].window
                     res[key]["A"] = "S+" if rcv.ack == 2 else "S" if rcv.ack == 1 else "Z" if rcv.ack == 0 else "O"
                     res[key]["F"] = str(rcv[TCP].flags)[::-1]
-                    res[key]["O"] = "".join(x[0][0] for x in rcv[TCP].options)
+                    res[key]["O"] = parse_ops(rcv[TCP].options)
                     res[key]["R"] = "Y"
                     res[key]["T"] = rcv.ttl
+                    res[key]["TG"] = get_tg(rcv.ttl)
                     res[key]["S"] = "A+" if rcv.seq == 2 else "A" if rcv.seq == 1 else "Z" if rcv.seq == 0 else "O"
                 else:
                     res[key]["R"] = "N"
     return res
 
 
-def tcp_ops_win_parser(answers):
+def cc_parser(rcv):
+    if "E" in rcv[TCP].flags and "C" in rcv[TCP].flags:
+        res = "S"
+    elif "E" in rcv[TCP].flags:
+        res = "Y"
+    elif "C" in rcv[TCP].flags:
+        res = "O"
+    else:
+        res = "N"
+    return res
+
+def tcp_ops_win_parser(packets):
     res = {"OPS": {}, "WIN": {}}
-    for ans in answers:
-        for snd, rcv in ans:
+    for pkt in packets:
+        for snd, rcv in pkt:
             if rcv is not None:
-                index = str(snd.sport - 5000)
-                res["OPS"][f"O{index}"] = "".join(
-                    x[0][0] for x in rcv[TCP].options)
-                res["WIN"][f"W{index}"] = rcv.window
+                index = str(snd.sport)[-1]
+                res["OPS"][f"O{index}"] = parse_ops(rcv[TCP].options)
+                res["WIN"][f"W{index}"] = rcv[TCP].window
             else:
                 continue
 
@@ -257,3 +270,37 @@ def tcp_ops_win_parser(answers):
             res.pop(key, None)
 
     return res
+
+
+def parse_ops(options):
+    if len(options) == 0 or options is None:
+        return ""
+    
+    res = ""
+    for op in options:
+        res += str(op[0][0])
+        if op[1] is not None and op[1] != b'':
+            if(op[0][0] == "T"):
+                res += '11'
+            else:
+                res += f'{(op[1]):x}'
+            
+    return res.upper()
+
+def ecn_parser(packets):
+    # SHOULD BE ONLY 1 PACKET
+    res = {"ECN": {}}
+    for pkt in packets:
+        for snd, rcv in pkt:
+            if rcv is not None:
+                res["ECN"]["CC"] = cc_parser(rcv)
+                res["ECN"]["R"] = "Y"
+                res["ECN"]["DF"] = "Y" if rcv.flags.DF else "N"
+                res["ECN"]["W"] = rcv[TCP].window
+                res["ECN"]["O"] = parse_ops(rcv[TCP].options)
+                res["ECN"]["T"] = rcv.ttl
+                res["ECN"]["TG"] = get_tg(rcv.ttl)
+            else:
+                res["ECN"]["R"] = "N"
+    return res
+    

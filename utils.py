@@ -36,7 +36,10 @@ def parse_diffs(param_list):
 def avg_inc_per_sec(timestamps):
     diffs = []
     for i in range(len(timestamps) - 1):
-        diffs.append((timestamps[i+1][1][0]-timestamps[i][1][0]) / 0.1)
+        first_pkt = timestamps[i]
+        scnd_pkt = timestamps[i+1]
+        diffs.append((scnd_pkt[1]-first_pkt[1]) / 0.1 * (scnd_pkt[0] - first_pkt[0]))
+        
     return sum(diffs)/len(diffs)
 
 
@@ -109,9 +112,12 @@ def parse_hex(fingerprints):
                     splitted = fingerprints[fp][cat][test].split('|')
                     fingerprints[fp][cat][test] = splitted
                     continue
-                if test in ['SP', 'GCD', 'ISR', "W", "W1", "W2", "W3", "W4", "W5", "W6", "TG", "T", "TS"]:
+                if test in ['SP', 'GCD', 'ISR', "W", "W1", "W2", "W3", "W4", "W5", "W6", "TG", "T", "TS", "UN", "RIPL", "IPL"]:
                     if test == "TS" and fingerprints[fp][cat][test] == "U":
                         fingerprints[fp][cat][test] == ["U"]
+                        continue
+                    if test == "RIPL" and fingerprints[fp][cat][test] == "G":
+                        fingerprints[fp][cat][test] == ["G"]
                         continue
                     splitted = fingerprints[fp][cat][test].split('|')
                     for item in splitted:
@@ -191,7 +197,7 @@ def get_final_fp_guess(fp_results):
     grouped_df.sort_values("Probability", ascending=False, inplace=True)
     grouped_df["Probability"] = grouped_df["Probability"].apply(
         lambda x: str(round((x*100), 2)) + "%")
-    top10 = grouped_df.reset_index(drop=True).head(10)
+    top10 = grouped_df.reset_index(drop=True).head(50)
 
     return top10
 
@@ -199,7 +205,7 @@ def get_final_fp_guess(fp_results):
 def packet_sender(tests, interval=0.1):
     answers = []
     for packet in tests:
-        ans, unans = sr(packet, timeout=2, inter=interval)
+        ans, unans = sr(packet, timeout=5, inter=interval)
         ans.extend((x, None) for x in unans)
         answers.append(ans)
     return answers
