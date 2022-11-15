@@ -1,15 +1,27 @@
+import os
+os.environ['MPLCONFIGDIR'] = os.getcwd() + "/configs/"
+import socket
 import pandas as pd
-from scapy.arch import WINDOWS
-from scapy.layers.inet import IP, TCP, ICMP
-from scapy.sendrecv import sr, sr1
 import random
-from config.config import MATCH_POINTS
-from halo import Halo
 import operator
-from core.packets.packet_parsers.parsers import create_final_fp
-from core.packets.probes import Probes
+from termcolor import colored
 from more_itertools import take
+from core.packets.probes import Probes
+from core.packets.packet_parsers.parsers import create_final_fp
+from halo import Halo
+from config.config import MATCH_POINTS
+from scapy.sendrecv import sr, sr1
+from scapy.layers.inet import IP, TCP, ICMP
+from scapy.arch import WINDOWS
 
+
+def resolve_host(host):
+    try:
+        data = socket.gethostbyname(host)
+        return data
+    except Exception as e:
+        raise Exception(colored("Host Not Found!", "yellow"))
+        
 
 def create_fp_for_host(host, oport, cport, timeout):
     packet_config = Probes(host, oport, cport)

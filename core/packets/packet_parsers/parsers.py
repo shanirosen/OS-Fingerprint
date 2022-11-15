@@ -245,8 +245,8 @@ def t1_t7_u1_parser(packets):
                     res[key]["T"] = rcv.ttl
                     res[key]["TG"] = get_tg(rcv.ttl)
                     res[key]["S"] = "A+" if rcv.seq == 2 else "A" if rcv.seq == 1 else "Z" if rcv.seq == 0 else "O"
-                    res[key]["RD"] = zlib.crc32(bytes(rcv[TCP].payload)) if bytes(
-                        rcv[TCP].payload) != b'' else "0"
+                    res[key]["RD"] = zlib.crc32(bytes(rcv[TCP].payload)) if (bytes(
+                        rcv[TCP].payload) != b'' and "R" in parse_ops(rcv[TCP].options))else "0"
                     res[key]["Q"] = "R" if rcv.reserved != 0 else (
                         "U" if rcv.urgptr != 0 and "U" not in parse_ops(rcv[TCP].options) else "")
 

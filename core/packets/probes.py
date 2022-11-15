@@ -1,3 +1,4 @@
+from scapy.arch import WINDOWS
 from scapy.layers.inet import IP, TCP, UDP, ICMP
 import random
 
