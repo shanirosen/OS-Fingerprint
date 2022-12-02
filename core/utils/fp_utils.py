@@ -67,7 +67,7 @@ def port_scanner(host, port_range, isFast):
         spinner.start()
         src_port = random.randint(1025, 65534)
         resp = sr1(
-            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=1,
+            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=5,
             verbose=0,
         )
 
@@ -113,7 +113,7 @@ def get_final_fp_guess(fp_results, top_results):
     grouped_df = df.groupby("OS", as_index=False).mean()
     grouped_df.sort_values("Probability", ascending=False, inplace=True)
     grouped_df["Probability"] = grouped_df["Probability"].apply(
-        lambda x: str(round((x*100), 2)) + "%")
+        lambda x: str(round(x, 3)) + "%")
     top = grouped_df.reset_index(drop=True).head(top_results)
 
     return top
@@ -154,10 +154,9 @@ def matching_algorithm(nmap_os_db, res):
                                                 match_points += MATCH_POINTS[category][test]
                         elif res[category][test] == nmap_os_db[fp][category][test]:
                             match_points += MATCH_POINTS[category][test]
-                except:
+                except Exception as e:
                     continue
-        results[fp] = match_points / possible_points
-
+        results[fp] = (match_points / possible_points) * 100
     sorted_res = dict(
         sorted(results.items(), key=operator.itemgetter(1), reverse=True))
     return sorted_res
