@@ -12,39 +12,46 @@ from more_itertools import take
 from termcolor import colored
 from halo import Halo
 
+class OS_Fingerprint_Finder:
+    def __init__(self, host, timeout, is_fast, show_ports, top_results):
+        self.host = host
+        self.timeout = timeout if timeout else 2
+        self.is_fast = is_fast
+        self.show_ports = show_ports
+        self.top_results = top_results
 
+    def find_os_fp(self):
+        print(BANNER)
+        conf.verb = 0
 
-def os_fp(host, timeout, isFast, show_ports, top_results):
-    print(BANNER)
-    conf.verb = 0
+        nmap_os_db = create_nmap_os_db()
 
-    nmap_os_db = create_nmap_os_db()
+        if validators.domain(self.host):
+            self.host = resolve_host(self.host)
 
-    if validators.domain(host):
-        host = resolve_host(host)
+        else:
+            socket.inet_aton(self.host)
+            
+        ports_results, open_ports = port_scanner(self.host, PORT_RANGE, self.is_fast)
 
-    else:
-        socket.inet_aton(host)
+        if self.show_ports:
+            print(prettify_ports(ports_results))
+
+        if len(open_ports) == 0:
+            print(colored(
+                "WARNING: No open ports found, cannot guess os fingerprint. Aborting!", "yellow"))
+            return
+
+        possible_fp_results = []
+        spinner = Halo(text='Finding a Fingerprint...', spinner='dots')
         
-    ports_results, open_ports = port_scanner(host, PORT_RANGE, isFast)
-
-    if show_ports:
-        print(prettify_ports(ports_results))
-
-    if len(open_ports) == 0:
-        print(colored(
-            "WARNING: No open ports found, cannot guess os fingerprint. Aborting!", "yellow"))
-        return
-
-    possible_fp_results = []
-    spinner = Halo(text='Finding a Fingerprint...', spinner='dots')
-    for oport in open_ports:
-        spinner.start()
-        final_res = create_fp_for_host(host, oport, 1, timeout)
-        fp_matches = matching_algorithm(nmap_os_db, final_res)
-        possible_fp_results.append(take(top_results, fp_matches.items()))
-
-    spinner.stop()
-    final_os_guess = get_final_fp_guess(possible_fp_results, top_results)
-    print(final_os_guess)
+        for oport in open_ports:
+            spinner.start()
+            final_res = create_fp_for_host(self.host, oport, 1, self.timeout)
+            fp_matches = matching_algorithm(nmap_os_db, final_res)
+            possible_fp_results.append(take(self.top_results, fp_matches.items()))
+        spinner.stop()
+        
+        final_os_guess = get_final_fp_guess(possible_fp_results, self.top_results)
+        print(final_os_guess)
 

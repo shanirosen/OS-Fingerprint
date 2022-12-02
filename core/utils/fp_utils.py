@@ -45,16 +45,6 @@ def create_fp_for_host(host, oport, cport, timeout):
 
 
 def port_scanner(host, port_range, isFast):
-    """_summary_
-
-    Args:
-        host (_type_): _description_
-        port_range (_type_): _description_
-        isFast (bool): _description_
-
-    Returns:
-        _type_: _description_
-    """
     spinner = Halo(text='Scanning Ports...', spinner='dots')
     results = []
     open_ports = []
@@ -120,8 +110,6 @@ def get_final_fp_guess(fp_results, top_results):
 
 
 def packet_sender(tests, timeout):
-    if timeout is None:
-        timeout = 3
     answers = []
     for packet in tests:
         ans, unans = sr(packet, timeout=timeout, inter=0.1)
