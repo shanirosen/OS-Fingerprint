@@ -1,29 +1,29 @@
-import os
-os.environ['MPLCONFIGDIR'] = os.getcwd() + "/configs/"
-import socket
-import pandas as pd
-import random
-import operator
-from termcolor import colored
-from more_itertools import take
-from core.packets.probes import Probes
-from core.packets.packet_parsers.parsers import create_final_fp
-from halo import Halo
-from config.config import MATCH_POINTS
-from scapy.sendrecv import sr, sr1
-from scapy.layers.inet import IP, TCP, ICMP
+from core.utils.decorators import timer, performance_check, spinner
 from scapy.arch import WINDOWS
+from scapy.layers.inet import IP, TCP, ICMP
+from scapy.sendrecv import sr, sr1
+from config.config import MATCH_POINTS
+from halo import Halo
+from core.packets.probes import Probes
+from more_itertools import take
+from termcolor import colored
+import operator
+import random
+import pandas as pd
+import socket
+import os
+os.environ['MPLCONFIGDIR'] = os.getcwd() + "/config/"
 
 
-def resolve_host(host):
+def resolve_host(host: str):
     try:
         data = socket.gethostbyname(host)
         return data
     except Exception as e:
         raise Exception(colored("Host Not Found!", "yellow"))
-        
 
-def create_fp_for_host(host, oport, cport, timeout):
+
+def send_probes(host: str, oport: int, cport: int, timeout: int):
     packet_config = Probes(host, oport, cport)
 
     seq_probes = packet_config.seq_probes()
@@ -38,43 +38,34 @@ def create_fp_for_host(host, oport, cport, timeout):
     tcp_cport_ans = packet_sender(tcp_cport_probes, timeout)
     ecn_ans = packet_sender(ecn_probes, timeout)
 
-    final_res = create_final_fp(
-        tcp_ans, seq_ans, icmp_ans, tcp_cport_ans, ecn_ans)
-
-    return final_res
+    return seq_ans, icmp_ans, tcp_ans, tcp_cport_ans, ecn_ans
 
 
-def port_scanner(host, port_range, isFast):
-    spinner = Halo(text='Scanning Ports...', spinner='dots')
+@spinner('Scanning Ports...')
+def port_scanner(host: str, port_range: dict, is_fast: bool):
     results = []
     open_ports = []
+    closed_ports = []
 
-    if isFast:
+    if is_fast:
         top10 = take(10, port_range.items())
         port_range = dict(top10)
 
     for dst_port in (port_range):
-        spinner.start()
         src_port = random.randint(1025, 65534)
         resp = sr1(
-            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=5,
-            verbose=0,
-        )
+            IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags="S"), timeout=2, verbose=0)
 
         if resp is None:
             results.append([dst_port, "Filtered", port_range[dst_port]])
 
         elif (resp.haslayer(TCP)):
             if (resp.getlayer(TCP).flags == 0x12):
-                sr1(
-                    IP(dst=host)/TCP(sport=src_port, dport=dst_port, flags='R'),
-                    timeout=1,
-                    verbose=0,
-                )
                 results.append([dst_port, "Open", port_range[dst_port]])
                 open_ports.append(dst_port)
 
             elif (resp.getlayer(TCP).flags == 0x14):
+                closed_ports.append(dst_port)
                 results.append(
                     [dst_port, "Closed", port_range[dst_port]])
 
@@ -85,13 +76,11 @@ def port_scanner(host, port_range, isFast):
                 results.append(
                     [dst_port, "Filtered", port_range[dst_port]])
 
-    spinner.stop()
-    return results, open_ports
+    return results, open_ports, closed_ports
 
 
-def get_final_fp_guess(fp_results, top_results):
-    if top_results is None:
-        top_results = 10
+def get_final_fp_guess(fp_results: list, top_results: int):
+
     fp_results = [item for sublist in fp_results for item in sublist]
 
     df = pd.DataFrame(fp_results)
@@ -109,7 +98,7 @@ def get_final_fp_guess(fp_results, top_results):
     return top
 
 
-def packet_sender(tests, timeout):
+def packet_sender(tests: list, timeout: int):
     answers = []
     for packet in tests:
         ans, unans = sr(packet, timeout=timeout, inter=0.1)
@@ -118,7 +107,7 @@ def packet_sender(tests, timeout):
     return answers
 
 
-def matching_algorithm(nmap_os_db, res):
+def matching_algorithm(nmap_os_db: dict, res: dict):
     results = {}
     for fp in nmap_os_db.keys():
         possible_points = 0

@@ -3,7 +3,7 @@ from scapy.layers.inet import IP, TCP, UDP, ICMP
 import random
 
 class Probes:
-    def __init__(self, host, oport, cport):
+    def __init__(self, host: str, oport: int, cport: int):
         self.host = host
         self.cport = cport
         self.oport = oport

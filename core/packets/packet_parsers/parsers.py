@@ -10,7 +10,7 @@ import zlib
 import sys
 
 
-def ts_parser(packets):
+def ts_parser(packets: list):
     timestamps = []
     pkt_counter = 0
     index = 0
@@ -39,7 +39,7 @@ def ts_parser(packets):
         return {"TS": round(log2(avg_inc))}
 
 
-def get_tg(ttl):
+def get_tg(ttl: int):
     if (ttl <= 32):
         tg = 32
     elif (ttl > 32 and ttl <= 64):
@@ -51,7 +51,7 @@ def get_tg(ttl):
     return tg
 
 
-def ie_parser(packets):
+def ie_parser(packets: list):
     res = {"IE": {}}
     answers = []
     probes = []
@@ -89,7 +89,7 @@ def ie_parser(packets):
     return res
 
 
-def sp_parser(seq_list, seq_rates, gcd):
+def sp_parser(seq_list: list, seq_rates: list, gcd: int):
     sp = None
     if len(seq_list) >= 4:
         if(gcd > 9):
@@ -104,7 +104,7 @@ def sp_parser(seq_list, seq_rates, gcd):
     return sp
 
 
-def ti_ci_ii_parser(packets, test):
+def ti_ci_ii_parser(packets: list, test: str):
     ids = []
     res = {test: ""}
     num = REQUIRED_RESPONSES[test]
@@ -143,7 +143,7 @@ def ti_ci_ii_parser(packets, test):
     return res
 
 
-def ss_parser(icmp_pkts, tcp_pkts):
+def ss_parser(icmp_pkts: list, tcp_pkts: list):
     tcp_ip_ids = []
     icmp_ip_ids = []
     i = 0
@@ -170,7 +170,7 @@ def ss_parser(icmp_pkts, tcp_pkts):
         return {"SS": "O"}
 
 
-def seq_parser(packets):
+def seq_parser(packets: list):
     isr = 0
     seq_list = []
     res = {"SEQ": {}}
@@ -226,7 +226,7 @@ def u1_parser(snd, rcv):
     return res
 
 
-def t1_t7_u1_parser(packets):
+def t1_t7_u1_parser(packets: list):
     res = {"U1": {}}
     for pkt in packets:
         for snd, rcv in pkt:
@@ -267,7 +267,7 @@ def cc_parser(rcv):
     return res
 
 
-def tcp_ops_win_parser(packets):
+def tcp_ops_win_parser(packets: list):
     res = {"OPS": {}, "WIN": {}}
     for pkt in packets:
         for snd, rcv in pkt:
@@ -285,7 +285,7 @@ def tcp_ops_win_parser(packets):
     return res
 
 
-def parse_ops(options):
+def parse_ops(options: list):
     if len(options) == 0 or options is None:
         return ""
 
@@ -301,7 +301,7 @@ def parse_ops(options):
     return res.upper()
 
 
-def ecn_parser(packets):
+def ecn_parser(packets: list):
     # SHOULD BE ONLY 1 PACKET
     res = {"ECN": {}}
     for pkt in packets:
@@ -322,7 +322,7 @@ def ecn_parser(packets):
     return res
 
 
-def create_final_fp(tcp_ans, seq_ans, icmp_ans, tcp_cport_ans, ecn_ans):
+def parse_pkt_res_2_fp(tcp_ans, seq_ans, icmp_ans, tcp_cport_ans, ecn_ans):
     t1_t7_u1 = t1_t7_u1_parser(tcp_ans)
     ops_win = tcp_ops_win_parser(seq_ans)
     seq = seq_parser(seq_ans)

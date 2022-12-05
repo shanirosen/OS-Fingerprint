@@ -2,14 +2,25 @@ from prettytable import PrettyTable
 from functools import reduce
 from math import gcd
 from config.config import LIMIT
+from core.utils.fp_utils import resolve_host
+import validators
+import socket
 
+def find_gcd(lst: list) -> int:
+    """
+    Calculates greatest common divisor from a list of integers.
 
-def find_gcd(list):
-    x = reduce(gcd, list)
+    Args:
+        lst (list): list of numbers
+
+    Returns:
+        int: great common divisor
+    """
+    x = reduce(gcd, lst)
     return x
 
 
-def parse_diffs(param_list):
+def parse_diffs(param_list: list):
     diffs = []
     for i in range(len(param_list) - 1):
         first = param_list[i]
@@ -27,7 +38,7 @@ def parse_diffs(param_list):
     return diffs
 
 
-def avg_inc_per_sec(timestamps):
+def avg_inc_per_sec(timestamps: list):
     diffs = []
     for i in range(len(timestamps) - 1):
         first_pkt = timestamps[i]
@@ -38,7 +49,7 @@ def avg_inc_per_sec(timestamps):
     return sum(diffs)/len(diffs)
 
 
-def all_equal(iterator):
+def all_equal(iterator: iter):
     return len(set(iterator)) <= 1
 
 
@@ -47,3 +58,10 @@ def prettify_ports(ports_results):
     ports_table.field_names = ["Port", "Status", "Service"]
     ports_table.add_rows(ports_results)
     return ports_table
+
+def validate_host(host: str):
+    if validators.domain(host):
+            host = resolve_host(host)
+    else:
+        socket.inet_aton(host)
+    return host

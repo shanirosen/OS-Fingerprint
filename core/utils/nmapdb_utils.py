@@ -5,7 +5,7 @@ import os
 from config.config import NMAP_OS_DB_PATH, NMAP_OS_DB_TXT
 
 
-def list_to_dict(lst):
+def list_to_dict(lst: list):
     dct = {}
     for item in lst:
         splitted = item.split("=")
@@ -16,7 +16,17 @@ def list_to_dict(lst):
     return dct
 
 
-def parse_hex(fingerprints):
+def parse_os_db_values(fingerprints: dict) -> dict:
+    """
+    Handeling and updating complex values in nmap os db, for the matching algorithm.
+    Converting the hexadecimal values to int, ranges to list and operators to tuples.
+
+    Args:
+        fingerprints (dict): Old fingerprints dict.
+
+    Returns:
+        dict: Updated fingerprints dict.
+    """
     for fp in fingerprints:
         for cat in fingerprints[fp]:
             for test in fingerprints[fp][cat]:
@@ -58,7 +68,7 @@ def parse_hex(fingerprints):
     return fingerprints
 
 
-def parse_nmap_os_db(path):
+def parse_nmap_os_db(path: str):
     parsed_os_db = {}
     dupes_counter = {}
     with open(path) as file:
@@ -77,11 +87,11 @@ def parse_nmap_os_db(path):
                     dupes_counter[title] = 0
 
                 if title in parsed_os_db.keys():
-                    key = f'{title} #{dupes_counter[title]}'
+                    key = f'{title} (subversionno. {dupes_counter[title]})'
 
                 else:
                     key = title
-
+                    
                 parsed_os_db[key] = {}
                 break
             else:
@@ -99,7 +109,7 @@ def parse_nmap_os_db(path):
             data_list = data.split("%")
             parsed_os_db[key][category] = list_to_dict(data_list)
 
-    fully_parsed = parse_hex(parsed_os_db)
+    fully_parsed = parse_os_db_values(parsed_os_db)
     with open(NMAP_OS_DB_PATH, 'w') as f:
         f.write(json.dumps(fully_parsed))
 

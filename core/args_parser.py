@@ -1,12 +1,10 @@
 import argparse
-from config.config import BANNER
-
 
 def arg_parser():
     parser = argparse.ArgumentParser(
         prog="OS Fingerprint",
         description='This program returns an estimate for a remote host OS.',
-        epilog='To start, run sudo python main.py [host]')
+        epilog='To start, run sudo python os_fingerprint.py [host]')
     parser.add_argument("host", help="The IP or hotname/domain of the host")
     parser.add_argument(
         "-f", "--fast", help="Get a faster fingerprint by scanning less ports", action='store_true')
