@@ -4,6 +4,14 @@ import random
 
 class Probes:
     def __init__(self, host: str, oport: int, cport: int):
+        """A class representing all the needed probes to send to the host, according to nmap's tests.
+        After each probe is defined, the probes are sent to the host by the probe sender.
+        The full description of the probes can be found on nmap's website.
+        Args:
+            host (str): the relevant host
+            oport (int): open port of the host
+            cport (int): closed port of the host
+        """
         self.host = host
         self.cport = cport
         self.oport = oport

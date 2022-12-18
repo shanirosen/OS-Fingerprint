@@ -68,7 +68,17 @@ def parse_os_db_values(fingerprints: dict) -> dict:
     return fingerprints
 
 
-def parse_nmap_os_db(path: str):
+def parse_nmap_os_db(path: str) -> dict:
+    """
+    A function that parses the original nmap os db (txt) into a json format.
+    After it's parsed, a comparison to the host can be achieved easily.
+
+    Args:
+        path (str): path to the original nmap os db file
+
+    Returns:
+        dict: the nmap os db as dict
+    """
     parsed_os_db = {}
     dupes_counter = {}
     with open(path) as file:
@@ -87,7 +97,7 @@ def parse_nmap_os_db(path: str):
                     dupes_counter[title] = 0
 
                 if title in parsed_os_db.keys():
-                    key = f'{title} (subversionno. {dupes_counter[title]})'
+                    key = f'{title} #{dupes_counter[title]}'
 
                 else:
                     key = title
@@ -119,7 +129,10 @@ def parse_nmap_os_db(path: str):
 def create_nmap_os_db():
     if (not os.path.exists(NMAP_OS_DB_PATH)):
         parse_nmap_os_db(NMAP_OS_DB_TXT)
+        print (u'\u2705' + " Parsed Nmap OS DB Successfully\n")
 
+    print (u'\u2705' + " Nmap OS DB Already Exists\n")
     db_file = open(NMAP_OS_DB_PATH)
     nmap_os_db = json.load(db_file)
+    
     return nmap_os_db

@@ -6,6 +6,7 @@ from core.utils.fp_utils import resolve_host
 import validators
 import socket
 
+
 def find_gcd(lst: list) -> int:
     """
     Calculates greatest common divisor from a list of integers.
@@ -59,9 +60,10 @@ def prettify_ports(ports_results):
     ports_table.add_rows(ports_results)
     return ports_table
 
+
 def validate_host(host: str):
     if validators.domain(host):
-            host = resolve_host(host)
+        host = resolve_host(host)
     else:
         socket.inet_aton(host)
     return host

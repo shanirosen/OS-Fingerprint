@@ -34,4 +34,5 @@ sudo python main.py 45.33.32.156
 | -f|- - fast  |  Shortening the amount of ports the program scans, so the result is faster|
 |-t | - - timeout |Defining the timeout for receiving an answer to a packet. By default 5 seconds.| 
 |-r |- - results |Define the number of top results to show. The default is 10.
-|-p |- - ports |Show the result of the port scan.  
+|-p |- - ports |Show the result of the port scan. 
+|-d |- - debug |Debug mode - logs every main function that runs, along with cpu usage, memory and duration.  

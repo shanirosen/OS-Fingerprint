@@ -1,4 +1,4 @@
-from core.utils.decorators import timer, performance_check, spinner
+from core.utils.decorators import performance_check
 from scapy.arch import WINDOWS
 from scapy.layers.inet import IP, TCP, ICMP
 from scapy.sendrecv import sr, sr1
@@ -22,7 +22,7 @@ def resolve_host(host: str):
     except Exception as e:
         raise Exception(colored("Host Not Found!", "yellow"))
 
-
+@performance_check
 def send_probes(host: str, oport: int, cport: int, timeout: int):
     packet_config = Probes(host, oport, cport)
 
@@ -41,8 +41,16 @@ def send_probes(host: str, oport: int, cport: int, timeout: int):
     return seq_ans, icmp_ans, tcp_ans, tcp_cport_ans, ecn_ans
 
 
-@spinner('Scanning Ports...')
+@Halo(text='Scanning Ports...', spinner='dots')
 def port_scanner(host: str, port_range: dict, is_fast: bool):
+    """
+    A port scanner.
+
+    Args:
+        host (str): the host - an IP address
+        port_range (dict): port range to check
+        is_fast (bool): if true, checks only the top 10 ports, i.e faster results
+    """
     results = []
     open_ports = []
     closed_ports = []
@@ -78,26 +86,34 @@ def port_scanner(host: str, port_range: dict, is_fast: bool):
 
     return results, open_ports, closed_ports
 
+@performance_check
+def get_final_fp_guess(fp_results: list, top_results: int) -> pd.DataFrame:
+    """Parsing all the results into one cohesive result.
 
-def get_final_fp_guess(fp_results: list, top_results: int):
+    Args:
+        fp_results (list): all the fingerprint results for a given host
+        top_results (int): a number describing how many results to return
 
+    Returns:
+        DataFrame: a dataframe contains the final top fingerprint results for a given host
+    """
     fp_results = [item for sublist in fp_results for item in sublist]
-
+    
     df = pd.DataFrame(fp_results)
 
     df[0] = df[0].apply(lambda x: " ".join(x.split(" ")[1:]))
 
     df.rename({0: "OS", 1: "Probability"}, axis=1, inplace=True)
-
+    df["OS"] = df["OS"].apply(lambda x: x.split(' #')[0])
     grouped_df = df.groupby("OS", as_index=False).mean()
     grouped_df.sort_values("Probability", ascending=False, inplace=True)
     grouped_df["Probability"] = grouped_df["Probability"].apply(
-        lambda x: str(round(x, 3)) + "%")
+        lambda x: str(round(x, 1)) + "%")
     top = grouped_df.reset_index(drop=True).head(top_results)
 
     return top
 
-
+@performance_check
 def packet_sender(tests: list, timeout: int):
     answers = []
     for packet in tests:
@@ -106,7 +122,7 @@ def packet_sender(tests: list, timeout: int):
         answers.append(ans)
     return answers
 
-
+@performance_check
 def matching_algorithm(nmap_os_db: dict, res: dict):
     results = {}
     for fp in nmap_os_db.keys():

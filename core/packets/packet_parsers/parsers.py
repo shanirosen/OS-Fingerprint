@@ -323,6 +323,10 @@ def ecn_parser(packets: list):
 
 
 def parse_pkt_res_2_fp(tcp_ans, seq_ans, icmp_ans, tcp_cport_ans, ecn_ans):
+    """
+    A function that parses all the probes responses into a single fingerprint, 
+    in order to compare it to the nmap os db.
+    """
     t1_t7_u1 = t1_t7_u1_parser(tcp_ans)
     ops_win = tcp_ops_win_parser(seq_ans)
     seq = seq_parser(seq_ans)
