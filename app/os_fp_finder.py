@@ -10,7 +10,7 @@ from more_itertools import take
 from scapy.arch import WINDOWS
 from scapy.config import conf
 from config.config import PORT_RANGE, BANNER
-from core.utils.decorators import exception_filter
+from core.utils.decorators import exception_filter, timer
 from core.utils.general_utils import prettify_ports, validate_host
 from core.utils.nmapdb_utils import create_nmap_os_db
 from core.utils.fp_utils import get_final_fp_guess, port_scanner, matching_algorithm, send_probes, resolve_host
@@ -36,6 +36,7 @@ class OS_Fingerprint_Finder:
         self.top_results = top_results if top_results else 10
 
     @exception_filter
+    @timer
     def find_os_fp(self):
         print(BANNER)
         conf.verb = 0
@@ -53,25 +54,26 @@ class OS_Fingerprint_Finder:
         ports_results, open_ports, closed_ports = port_scanner(
             self.host, PORT_RANGE, self.is_fast)
 
-        if len(closed_ports) == 0:
-            closed_ports.append(1)
-
         if self.show_ports:
             print(prettify_ports(ports_results))
 
-        if len(open_ports) == 0:
+        if len(open_ports) == 0 or len(closed_ports) == 0:
             print(colored(
-                "WARNING: No open ports found, cannot guess os fingerprint. Aborting!", "yellow"))
+                "WARNING: No open or closed ports found, cannot guess os fingerprint. Aborting!", "yellow"))
             return
 
         cport = random.choice(closed_ports)
+        
+        if self.is_fast:
+            open_ports = [random.choice(open_ports)]
 
         possible_fp_results = self._get_possible_fp_results(
             cport, open_ports, nmap_os_db)
-
+        
         final_os_guess = get_final_fp_guess(
             possible_fp_results, self.top_results)
         
+        print(f"OS Fingerprint Guesses For {self.host}:\n")
         print(final_os_guess)
 
     @Halo(text='Finding Fingerprint...', spinner='dots')
@@ -93,6 +95,6 @@ class OS_Fingerprint_Finder:
                 tcp_ans, seq_ans, icmp_ans, tcp_cport_ans, ecn_ans)
             fp_matches = matching_algorithm(nmap_os_db, final_res)
             possible_fp_results.append(
-                take(self.top_results, fp_matches.items()))
+                take(50, fp_matches.items()))
 
         return possible_fp_results

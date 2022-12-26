@@ -22,6 +22,7 @@ def resolve_host(host: str):
     except Exception as e:
         raise Exception(colored("Host Not Found!", "yellow"))
 
+
 @performance_check
 def send_probes(host: str, oport: int, cport: int, timeout: int):
     packet_config = Probes(host, oport, cport)
@@ -86,6 +87,7 @@ def port_scanner(host: str, port_range: dict, is_fast: bool):
 
     return results, open_ports, closed_ports
 
+
 @performance_check
 def get_final_fp_guess(fp_results: list, top_results: int) -> pd.DataFrame:
     """Parsing all the results into one cohesive result.
@@ -97,12 +99,10 @@ def get_final_fp_guess(fp_results: list, top_results: int) -> pd.DataFrame:
     Returns:
         DataFrame: a dataframe contains the final top fingerprint results for a given host
     """
-    fp_results = [item for sublist in fp_results for item in sublist]
+    fp_results = [item for sublist in fp_results for item in sublist] #flatten
     
     df = pd.DataFrame(fp_results)
-
     df[0] = df[0].apply(lambda x: " ".join(x.split(" ")[1:]))
-
     df.rename({0: "OS", 1: "Probability"}, axis=1, inplace=True)
     df["OS"] = df["OS"].apply(lambda x: x.split(' #')[0])
     grouped_df = df.groupby("OS", as_index=False).mean()
@@ -113,6 +113,7 @@ def get_final_fp_guess(fp_results: list, top_results: int) -> pd.DataFrame:
 
     return top
 
+
 @performance_check
 def packet_sender(tests: list, timeout: int):
     answers = []
@@ -121,6 +122,7 @@ def packet_sender(tests: list, timeout: int):
         ans.extend((x, None) for x in unans)
         answers.append(ans)
     return answers
+
 
 @performance_check
 def matching_algorithm(nmap_os_db: dict, res: dict):

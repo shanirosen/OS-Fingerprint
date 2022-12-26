@@ -8,12 +8,16 @@ def timer(func):
     """Measure function execution time"""
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        end_time = time.perf_counter()
-        total_time = end_time - start_time
-        print(colored(f'\n [INFO] Finished running {func.__name__} in {total_time*1000:.0f} ms\n', "blue"))
-        return result
+        if os.environ.get('DEBUG') == "True":
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            end_time = time.perf_counter()
+            total_time = end_time - start_time
+            print(colored(f'\nFinished running {func.__name__} in {total_time:.2f} seconds\n', "blue"))
+            return result
+        else:
+            result = func(*args, **kwargs)
+            return result
     return timeit_wrapper
 
 

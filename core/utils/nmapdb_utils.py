@@ -130,8 +130,9 @@ def create_nmap_os_db():
     if (not os.path.exists(NMAP_OS_DB_PATH)):
         parse_nmap_os_db(NMAP_OS_DB_TXT)
         print (u'\u2705' + " Parsed Nmap OS DB Successfully\n")
-
-    print (u'\u2705' + " Nmap OS DB Already Exists\n")
+    else:
+        print (u'\u2705' + " Nmap OS DB Already Exists\n")
+        
     db_file = open(NMAP_OS_DB_PATH)
     nmap_os_db = json.load(db_file)
     
