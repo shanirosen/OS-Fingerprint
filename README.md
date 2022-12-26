@@ -15,14 +15,14 @@ pip install -r requirements.txt
 ```
 Then you can run the program by running:
 ```python
-python main.py [host]
+python os_fingerprint.py [host]
 ```
 For example:
 ```python
-sudo python main.py nmap.scanme.org
+sudo python os_fingerprint.py nmap.scanme.org
 ```
 ```python
-sudo python main.py 45.33.32.156
+sudo python os_fingerprint.py 45.33.32.156
 ```
 > **Note:** The program has to run in root privileges! 
 
