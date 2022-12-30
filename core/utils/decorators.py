@@ -33,7 +33,7 @@ def performance_check(func):
             current, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
 
-            print(colored(f"\n\nFunction:             {func.__name__} ({func.__doc__})"
+            print(colored(f"\n\nFunction:             {func.__name__}"
                     f"\nMemory usage:         {current / 10**6:.6f} MB"
                     f"\nPeak memory usage:    {peak / 10**6:.6f} MB"
                     f"\nDuration:             {duration:.6f} sec"
