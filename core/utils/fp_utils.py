@@ -99,8 +99,9 @@ def get_final_fp_guess(fp_results: list, top_results: int) -> pd.DataFrame:
     Returns:
         DataFrame: a dataframe contains the final top fingerprint results for a given host
     """
-    fp_results = [item for sublist in fp_results for item in sublist] #flatten
-    
+    fp_results = [
+        item for sublist in fp_results for item in sublist]  # flatten
+
     df = pd.DataFrame(fp_results)
     df[0] = df[0].apply(lambda x: " ".join(x.split(" ")[1:]))
     df.rename({0: "OS", 1: "Probability"}, axis=1, inplace=True)
@@ -128,30 +129,41 @@ def packet_sender(tests: list, timeout: int):
 def matching_algorithm(nmap_os_db: dict, res: dict):
     results = {}
     for fp in nmap_os_db.keys():
+
         possible_points = 0
         match_points = 0
+
         for category in res.keys():
             for test in res[category]:
                 try:
-                    if nmap_os_db[fp][category][test]:
+                    if nmap_os_db[fp][category][test]:  # category comparison
                         possible_points += MATCH_POINTS[category][test]
-                        if type(nmap_os_db[fp][category][test]) == list:
+
+                        if res[category][test] == nmap_os_db[fp][category][test]:  # regular comparison
+                            match_points += MATCH_POINTS[category][test]
+
+                        # list comparison
+                        elif isinstance(nmap_os_db[fp][category][test], list):
+
                             if res[category][test] in nmap_os_db[fp][category][test]:
                                 match_points += MATCH_POINTS[category][test]
-                            else:
+
+                            else:  # gt and lt
                                 for item in nmap_os_db[fp][category][test]:
-                                    if type(item) == tuple:
+                                    if isinstance(item, list):
                                         if item[0] == 'gt':
                                             if res[category][test] > item[1]:
                                                 match_points += MATCH_POINTS[category][test]
                                         else:
                                             if res[category][test] < item[1]:
                                                 match_points += MATCH_POINTS[category][test]
-                        elif res[category][test] == nmap_os_db[fp][category][test]:
-                            match_points += MATCH_POINTS[category][test]
+
                 except Exception as e:
+                    # category was not found
                     continue
+
         results[fp] = (match_points / possible_points) * 100
+
     sorted_res = dict(
         sorted(results.items(), key=operator.itemgetter(1), reverse=True))
     return sorted_res

@@ -1,3 +1,13 @@
+from core.packets.packet_parsers.parsers import parse_pkt_res_2_fp
+from core.utils.fp_utils import get_final_fp_guess, port_scanner, matching_algorithm, send_probes, resolve_host
+from core.utils.nmapdb_utils import create_nmap_os_db
+from core.utils.general_utils import prettify_ports, validate_host
+from core.utils.decorators import exception_filter, timer
+from config.config import PORT_RANGE, BANNER
+from scapy.config import conf
+from scapy.arch import WINDOWS
+from more_itertools import take
+from termcolor import colored
 import random
 import emoji
 import os
@@ -5,16 +15,6 @@ from halo import Halo
 import logging
 logging.getLogger("scapy.runtime").setLevel(
     logging.ERROR)  # disable scqpy warnings
-from termcolor import colored
-from more_itertools import take
-from scapy.arch import WINDOWS
-from scapy.config import conf
-from config.config import PORT_RANGE, BANNER
-from core.utils.decorators import exception_filter, timer
-from core.utils.general_utils import prettify_ports, validate_host
-from core.utils.nmapdb_utils import create_nmap_os_db
-from core.utils.fp_utils import get_final_fp_guess, port_scanner, matching_algorithm, send_probes, resolve_host
-from core.packets.packet_parsers.parsers import parse_pkt_res_2_fp
 
 
 class OS_Fingerprint_Finder:
@@ -28,6 +28,7 @@ class OS_Fingerprint_Finder:
         top_results (int): How many results to show.
 
     """
+
     def __init__(self, host: str, timeout: int, is_fast: bool, show_ports: bool, top_results: int):
         self.host = host
         self.timeout = timeout if timeout else 2
@@ -44,13 +45,13 @@ class OS_Fingerprint_Finder:
         nmap_os_db = create_nmap_os_db()
 
         self.host = validate_host(self.host)
-        
+
         if self.is_fast:
             print(emoji.emojize(":rocket:") + " Fast Mode\n")
-        
+
         if os.environ.get('DEBUG') == "True":
             print(emoji.emojize(":magnifying_glass_tilted_left:") + " Debug Mode\n")
-            
+
         ports_results, open_ports, closed_ports = port_scanner(
             self.host, PORT_RANGE, self.is_fast)
 
@@ -63,16 +64,16 @@ class OS_Fingerprint_Finder:
             return
 
         cport = random.choice(closed_ports)
-        
+
         if self.is_fast:
             open_ports = [random.choice(open_ports)]
 
         possible_fp_results = self._get_possible_fp_results(
             cport, open_ports, nmap_os_db)
-        
+
         final_os_guess = get_final_fp_guess(
             possible_fp_results, self.top_results)
-        
+
         print(f"OS Fingerprint Guesses For {self.host}:\n")
         print(final_os_guess)
 
